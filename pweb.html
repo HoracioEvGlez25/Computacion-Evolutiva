@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generador de Tabla de Bits - Condiciones</title>
+  <style>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #4CAF50;
+      color: white;
+    }
+    tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+    .highlight {
+      background-color: #FFD700; /* Amarillo para Mejores */
+    }
+    .highlight-peores {
+      background-color: #FF6347; /* Rojo para Peores */
+    }
+    .highlight-aleatorio {
+      background-color: #1E90FF; /* Azul para Aleatorio */
+    }
+    .mutado {
+      background-color: darkgray;
+    }
+    select, button {
+      margin: 10px;
+      padding: 10px;
+      font-size: 16px;
+    }
+    h2 {
+      margin-top: 20px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Generador de Tabla de Bits</h1>
+
+  <!-- Tabla Principal -->
+  <h2>Tabla Principal</h2>
+  <div id="tabla-principal"></div>
+
+  <button onclick="generarNuevaTabla()">Generar Nueva Tabla</button>
+
+  <div id="contenedor-tablas"></div>
+
+  <script>
+    const NUM_BITS = 12;
+    let contadorGeneracion = 1;
+
+    function generarDatosAleatorios() {
+      const rankingsUsados = new Set();
+      return Array.from({ length: 8 }, () => {
+        let ranking;
+        do {
+          ranking = Math.floor(Math.random() * 8) + 1;
+        } while (rankingsUsados.has(ranking));
+        rankingsUsados.add(ranking);
+
+        return {
+          sig: Math.round(Math.random()),
+          bits: Array.from({ length: NUM_BITS }, () => Math.round(Math.random())),
+          decimal: (Math.random() * 2000 - 1000).toFixed(2),
+          formula: (Math.random() * -1000000).toFixed(2),
+          ranking: ranking
+        };
+      });
+    }
+
+    function crearTabla(datos, paresIntercambiados, condicion, mutaciones) {
+      const tabla = document.createElement("table");
+      const thead = document.createElement("thead");
+      const tbody = document.createElement("tbody");
+
+      thead.innerHTML = `
+        <tr>
+          <th>No.</th>
+          <th>Sig</th>
+          ${Array.from({ length: NUM_BITS }, (_, i) => `<th>${2 ** (NUM_BITS - 1 - i)}</th>`).join('')}
+          <th>Decimal</th><th>Fórmula</th><th>Ranking</th>
+        </tr>
+      `;
+
+      datos.forEach((dato, index) => {
+        const fila = document.createElement("tr");
+        fila.innerHTML = `
+          <td>${index + 1}</td>
+          <td>${dato.sig}</td>
+          ${dato.bits.map((bit, i) => {
+            const esIntercambiado = paresIntercambiados.some(([a, b]) => 
+              (a === index || b === index) && (i >= NUM_BITS - 4));
+            const esMutado = mutaciones[index] === i;
+            const clase = esMutado ? "mutado" : esIntercambiado ?
+              (condicion === "mejores" ? "highlight" : 
+              condicion === "peores" ? "highlight-peores" : "highlight-aleatorio") : "";
+            return `<td class="${clase}">${bit}</td>`;
+          }).join('')}
+          <td>${dato.decimal}</td>
+          <td>${dato.formula}</td>
+          <td>${dato.ranking}</td>
+        `;
+        tbody.appendChild(fila);
+      });
+
+      tabla.appendChild(thead);
+      tabla.appendChild(tbody);
+      return tabla;
+    }
+
+    function obtenerPares(condicion) {
+      if (condicion === "mejores") {
+        return [[0, 1], [2, 3], [4, 5], [6, 7]];
+      } else if (condicion === "peores") {
+        return [[6, 7], [4, 5], [2, 3], [0, 1]];
+      } else {
+        const paresAleatorios = [];
+        for (let i = 0; i < 4; i++) {
+          let a, b;
+          do {
+            a = Math.floor(Math.random() * 8);
+            b = Math.floor(Math.random() * 8);
+          } while (a === b);
+          paresAleatorios.push([a, b]);
+        }
+        return paresAleatorios;
+      }
+    }
+
+    function intercambiarBits(datos, pares) {
+      pares.forEach(([a, b]) => {
+        for (let i = NUM_BITS - 4; i < NUM_BITS; i++) {
+          [datos[a].bits[i], datos[b].bits[i]] = [datos[b].bits[i], datos[a].bits[i]];
+        }
+      });
+    }
+
+    function generarMutaciones(datos) {
+      return datos.map(() => Math.floor(Math.random() * NUM_BITS));
+    }
+
+    function aplicarMutaciones(datos, mutaciones) {
+      mutaciones.forEach((bitIndex, rowIndex) => {
+        datos[rowIndex].bits[bitIndex] ^= 1;
+      });
+    }
+
+    function generarNuevaTabla() {
+      const opciones = ["mejores", "peores", "aleatorio"];
+      const condicion = opciones[Math.floor(Math.random() * opciones.length)];
+      alert(`Se utilizó la opción: ${condicion.toUpperCase()}`);
+
+      const datosNuevos = generarDatosAleatorios();
+      const pares = obtenerPares(condicion);
+      intercambiarBits(datosNuevos, pares);
+
+      const mutaciones = generarMutaciones(datosNuevos);
+      aplicarMutaciones(datosNuevos, mutaciones);
+
+      const nuevaTabla = crearTabla(datosNuevos, pares, condicion, mutaciones);
+      const titulo = document.createElement("h2");
+      titulo.textContent = `Generación ${contadorGeneracion++}`;
+
+      const contenedor = document.getElementById("contenedor-tablas");
+      contenedor.appendChild(titulo);
+      contenedor.appendChild(nuevaTabla);
+    }
+
+    function generarTablaPrincipal() {
+      const datosIniciales = generarDatosAleatorios();
+      const tablaPrincipal = crearTabla(datosIniciales, [], "mejores", []);
+      document.getElementById("tabla-principal").appendChild(tablaPrincipal);
+    }
+
+    window.onload = generarTablaPrincipal;
+  </script>
+
+</body>
+</html>
